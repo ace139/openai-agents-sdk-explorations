@@ -7,6 +7,9 @@ from rich.text import Text
 # Agent imports
 from agents import Runner  # Added
 from src.ai_agents.identity_verifier import identity_verification_agent  # Added
+from src.ai_agents.agent_context import (
+    UserInteractionContext,
+)  # Added - import the context
 
 app = typer.Typer()
 console = Console()
@@ -38,6 +41,13 @@ async def chat_loop():  # Changed to async
         )
     )
 
+    # Create a single shared context for the entire session
+    # This ensures the context persists across multiple turns of conversation
+    shared_context = UserInteractionContext()
+
+    # Track the current active agent across conversation turns
+    current_agent = identity_verification_agent
+
     # Start with a hardcoded message to prompt for user ID
     display_message(
         "Agent", "Hello! Please provide your user ID to start verification."
@@ -61,8 +71,18 @@ async def chat_loop():  # Changed to async
                 display_message("Agent", "Please provide some input.")
                 continue
 
-            # Get agent's response
-            result = await Runner.run(identity_verification_agent, user_input)
+            # Use the current active agent and the persistent context
+            result = await Runner.run(
+                starting_agent=current_agent,
+                input=user_input,
+                context=shared_context,  # Use the persistent context
+            )
+
+            # Check if a handoff occurred by examining if the last_agent changed
+            if result.last_agent.name != current_agent.name:
+                # Update the current agent to the last agent that ran
+                current_agent = result.last_agent
+
             display_message("Agent", result.final_output)
 
         except KeyboardInterrupt:
