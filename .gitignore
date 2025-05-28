@@ -37,6 +37,15 @@ ENV/
 # Project specific
 .windsurf/
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-journal
+*-shm
+*-wal
+
 # Logs
 *.log
 
