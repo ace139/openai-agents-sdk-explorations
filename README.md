@@ -1,171 +1,129 @@
-# CLI Chat Application
+# OpenAI Agents SDK Explorations: Health & Wellness AI Assistant
 
-A simple and interactive command-line chat application built with Python, Typer, and Rich. This application demonstrates a basic chat interface with color-coded messages and emoji support.
+This project explores the capabilities of the OpenAI Agents SDK by building a Health & Wellness AI assistant. The assistant interacts with users through a command-line interface (CLI) and helps them track their health metrics, mood, and receive personalized meal plans.
 
-## Features
+## Features Implemented
 
-- 🎨 Color-coded messages for better readability
-- 🤖 Agent responses in bold green
-- 👤 User input prompts in bold blue
-- 🚪 Graceful exit with "quit" or "exit" commands
-- 🛡️ Error handling for unexpected inputs
-- 🎭 Beautiful terminal formatting with Rich
+### 1. Core Infrastructure
+- **CLI Application**: Built using `typer` for a user-friendly command-line experience.
+- **OpenAI Agents SDK**: Leverages the SDK for creating and orchestrating multiple AI agents.
+- **SQLite Database**: Uses `health_assistant.db` for persistent storage of user data, health metrics, and conversation logs.
+- **SQLAlchemy ORM**: `db/models.py` defines the database schema using SQLAlchemy.
+- **Database Initialization**: `db/init_db.py` script populates the database with sample data for testing and demonstration.
+- **Environment Configuration**: Uses a `.env` file for managing sensitive information like API keys.
 
-## Prerequisites
+### 2. Agent Orchestration
+- **Centralized Runner**: `main.py` manages the main chat loop, agent execution, and transitions.
+- **Shared Context**: `src/ai_agents/agent_context.py` defines `UserInteractionContext`, a Pydantic model that allows data (like `user_id` and `exit_requested` flags) to be shared and persisted across different agent runs and handoffs.
+- **Agent Handoffs**: Agents seamlessly transfer control to one another based on predefined triggers and logic, creating a conversational flow.
 
-- Python 3.12 or higher
-- [uv](https://github.com/astral-sh/uv) (Python package installer and resolver)
-- SQLite3 (included with Python)
+### 3. Implemented AI Agents
 
-## Database Setup
+The application features a sequence of specialized AI agents, each with a distinct role:
 
-This application uses SQLite for data storage. You'll need to manually initialize the database before running the application for the first time.
+#### a. `IdentityVerifierAgent`
+- **File**: `src/ai_agents/identity_verifier.py`
+- **Responsibility**: Verifies the user's identity by checking the provided `user_id` against the `users` table in the database.
+- **Functionality**:
+    - Prompts the user for their ID if not provided.
+    - Uses the `verify_user_identity` tool to validate the ID.
+    - Greets the user with their name upon successful verification.
+- **Handoff**: Transitions to the `MoodRecorderAgent` after successful verification.
 
-### Database Schema
+#### b. `MoodRecorderAgent`
+- **File**: `src/ai_agents/mood_recorder_agent.py`
+- **Responsibility**: Collects and records the user's current mood.
+- **Functionality**:
+    - Asks the user how they are feeling.
+    - Uses the `record_mood` tool to save the mood into the `wellbeing_logs` table, linked to the `user_id` from the shared context.
+- **Handoff**: Transitions to the `CGMReadingCollectorAgent` after successfully recording the mood.
 
-The database includes the following tables:
+#### c. `CGMReadingCollectorAgent`
+- **File**: `src/ai_agents/cgm_reading_collector.py`
+- **Responsibility**: Collects and records the user's Continuous Glucose Monitoring (CGM) readings.
+- **Functionality**:
+    - Asks the user for their current glucose reading (in mg/dL).
+    - Uses the `record_glucose_reading` tool to save the reading into the `cgm_readings` table.
+    - Provides immediate feedback:
+        - Positive affirmation if the reading is within the normal range (70-140 mg/dL).
+        - Information if the reading is below or above the normal range.
+- **Handoff**: Transitions to the `MealPlannerAgent` if the glucose reading is outside the normal range.
 
-- `users`: Stores user profile information
-- `cgm_readings`: Stores Continuous Glucose Monitoring readings
-- `wellbeing_logs`: Tracks user wellbeing metrics
-- `conversation_logs`: Stores chat history   
+#### d. `MealPlannerAgent`
+- **File**: `src/ai_agents/meal_planner_agent.py`
+- **Responsibility**: Generates personalized meal recommendations based on the user's health profile and glucose status.
+- **Functionality**:
+    - Triggered when a CGM reading is out of the normal range.
+    - Uses three tools:
+        - `get_user_health_profile`: Retrieves the user's dietary preferences and medical conditions from the `users` table.
+        - `get_glucose_history`: Fetches the last CGM reading, and average CGM readings for the last 3 and 7 days from the `cgm_readings` table.
+        - `generate_meal_plan`: Crafts a meal plan for the next 3 meals. The LLM agent is instructed to consider the glucose status (high, low, normal), dietary preferences, and medical conditions to provide specific and actionable meal suggestions.
+    - After providing the meal plan, it sets an `exit_requested` flag in the shared context, signaling the `main.py` loop to terminate the application.
 
-### Initializing the Database
+### 4. Design Patterns & Principles
+- **Functional Programming**: Agents and their tools are designed with a functional approach where possible.
+- **Single Responsibility Principle**: Each agent has a clearly defined, single responsibility, promoting modularity and maintainability.
+- **Shared Context Management**: Effective use of `UserInteractionContext` and `RunContextWrapper` for managing state across agent interactions.
+- **Tool-Based Functionality**: Agents leverage `function_tool` decorators to define specific actions they can perform, often involving database interactions or complex logic.
+- **Clear Agent Instructions**: Each agent is configured with detailed instructions guiding its behavior, decision-making, and interaction style.
 
-To manually initialize the database with synthetic data:
+## How to Run
 
-```bash
-python db/init_db.py
-```
+1.  **Set up Environment**:
+    *   Ensure Python is installed.
+    *   Create a virtual environment: `python -m venv venv`
+    *   Activate it: `source venv/bin/activate` (on macOS/Linux) or `venv\Scripts\activate` (on Windows).
+    *   Install dependencies (assuming `uv` is used, as per project conventions):
+        ```bash
+        uv pip install -r requirements.txt 
+        ```
+        (Note: If `requirements.txt` is not yet created, list dependencies like `openai-agents`, `typer[all]`, `python-dotenv`, `sqlalchemy`, `pydantic`.)
+    *   Create a `.env` file in the project root and add your `OPENAI_API_KEY`:
+        ```
+        OPENAI_API_KEY='your_openai_api_key_here'
+        ```
 
-This will:
-1. Create a `db` directory if it doesn't exist
-2. Create a SQLite database file at `db/health_assistant.db`
-3. Generate synthetic data for 100 users
-4. Create CGM readings and wellbeing logs for each user
+2.  **Initialize Database**:
+    *   Run the database initialization script:
+        ```bash
+        python -m db.init_db
+        ```
+    This will create `health_assistant.db` in the `db` directory and populate it with sample data.
 
-## Synthetic Data Generation
+3.  **Start the Application**:
+    *   Run the main application:
+        ```bash
+        python main.py start
+        ```
 
-The application includes a sophisticated synthetic data generation system that creates realistic health data for testing and development purposes.
-
-### User Data
-
-For each user, we generate:
-- Realistic names and email addresses
-- Randomly assigned cities
-- Birth dates (ages 18-65)
-- Dietary preferences (vegetarian, vegan, non-vegetarian)
-- Medical conditions (Type 2 diabetes, hypertension, etc.)
-- Physical limitations (mobility issues, visual impairment, etc.)
-
-### CGM Readings
-
-Continuous Glucose Monitoring readings are generated with realistic patterns based on the user's medical conditions. The generation includes:
-
-1. **Condition-Specific Ranges**:
-   - Normal: 70-140 mg/dL
-   - Type 2 Diabetes: 90-250 mg/dL
-   - Prediabetes: 80-200 mg/dL
-   - Cardiovascular: 70-180 mg/dL
-   - General: 60-140 mg/dL (for other conditions)
-
-2. **Reading Types**:
-   - Normal readings (70% probability)
-   - Hyperglycemic readings (20% probability)
-   - Hypoglycemic readings (10% probability)
-
-3. **Temporal Patterns**:
-   - 4 readings per day (breakfast, lunch, dinner, bedtime)
-   - Random variations (±5%) to simulate real-world conditions
-   - Natural fluctuations throughout the day
-
-### Wellbeing Logs
-
-Daily wellbeing logs include:
-- Mood ratings (happy, sad, tired, energetic, etc.)
-- Timestamped entries
-- Random variations to simulate natural mood fluctuations
-
-### Data Quality Features
-
-- All timestamps are in UTC
-- Data follows realistic patterns based on medical conditions
-- Appropriate relationships between users and their data
-- Sufficient variability to simulate real-world scenarios
-
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd openai-agents-sdk-explorations
-   ```
-
-2. Install the required dependencies using UV:
-   ```bash
-   uv pip install -r requirements.txt
-   ```
-
-   Or if you prefer to use UV's native dependency resolution:
-   ```bash
-   uv pip sync
-   ```
-
-## Usage
-
-Start the chat application by running:
-
-```bash
-python main.py
-```
-
-### Commands
-
-- Type your message and press Enter to chat with the agent
-- Type `quit` or `exit` to end the chat session
-- Use `Ctrl+C` to exit at any time
+4.  **Interact with the Assistant**:
+    *   The assistant will first ask for your User ID. You can use any ID from 1 to 100 (as generated by `init_db.py`).
+    *   Follow the prompts to log your mood and glucose readings.
+    *   If your glucose reading is out of range, you will receive a meal plan.
+    *   Type `quit` or `exit` at any user prompt to terminate the session.
 
 ## Project Structure
 
 ```
-.
-├── .gitignore          # Git ignore file
-├── README.md           # This file
-├── main.py             # Main application entry point
-├── pyproject.toml      # Project metadata and dependencies
-├── uv.lock             # Lock file for reproducible dependencies
-├── db/                 # Database related code
-│   ├── __init__.py    # Database package
-│   ├── models.py      # SQLAlchemy models
-│   ├── database.py    # Database connection and session management
-│   └── init_db.py     # Database initialization and data generation
-└── src/                # Source code
-    ├── ai_agents/     # AI agent implementations
-    └── tools/         # Utility functions and tools
+openai-agents-sdk-explorations/
+├── .env                  # Environment variables (OPENAI_API_KEY)
+├── db/
+│   ├── __init__.py
+│   ├── init_db.py        # Script to initialize the database
+│   ├── models.py         # SQLAlchemy database models
+│   └── health_assistant.db # SQLite database file (created by init_db.py)
+├── src/
+│   ├── ai_agents/
+│   │   ├── __init__.py
+│   │   ├── agent_context.py          # Shared context for agents
+│   │   ├── cgm_reading_collector.py  # CGM reading collector agent
+│   │   ├── identity_verifier.py      # Identity verification agent
+│   │   ├── meal_planner_agent.py     # Meal planning agent
+│   │   └── mood_recorder_agent.py    # Mood recording agent
+│   └── __init__.py
+├── main.py               # Main CLI application entry point
+├── README.md             # This file
+└── ...                   # Other project files (e.g., requirements.txt)
 ```
 
-## Dependencies
-
-### Core Dependencies
-
-- [openai-agents](https://github.com/openai/openai-agents): Official OpenAI Agents SDK for building AI agents
-- [SQLAlchemy](https://www.sqlalchemy.org/): Python SQL toolkit and ORM for database interactions
-- [Typer](https://typer.tiangolo.com/): For building the CLI interface
-- [Rich](https://github.com/Textualize/rich): For rich text and beautiful formatting in the terminal
-- [Faker](https://faker.readthedocs.io/): For generating synthetic test data
-
-### Development Dependencies
-
-- [Ruff](https://beta.ruff.rs/): An extremely fast Python linter and code formatter
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
-Happy chatting! 👋
+This project serves as a practical example of building multi-agent systems with the OpenAI Agents SDK, demonstrating how to manage state, orchestrate agent handoffs, and integrate with external data sources like a database.
