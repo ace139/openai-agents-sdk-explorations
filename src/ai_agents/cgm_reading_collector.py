@@ -2,8 +2,9 @@ import sqlite3
 from pathlib import Path
 from typing import Annotated
 from pydantic import Field
-from agents import Agent, function_tool, RunContextWrapper
+from agents import Agent, function_tool, RunContextWrapper, handoff
 from .agent_context import UserInteractionContext
+from .meal_planner_agent import meal_planner_agent
 
 # Database path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -114,9 +115,14 @@ Follow these steps:
    - Feedback on whether the reading is within normal range (70-140 mg/dL)
    - A positive affirmation if the reading is within normal range
 
-5. If the user doesn't provide a clear numeric value, politely ask them to specify their glucose reading as a number.
+5. Analyze the glucose reading:
+   - If the reading is NOT within the normal range (70-140 mg/dL), politely inform the user that you'll help them with meal recommendations based on their glucose levels. Say something like: "I notice your glucose level is outside the normal range. Let me help you with some meal recommendations." Then use the transfer_to_MealPlannerAgent tool to hand off to the meal planner. Do not wait for further user input before this handoff.
+   - If the reading IS within the normal range, simply acknowledge this with a positive message.
+
+6. If the user doesn't provide a clear numeric value, politely ask them to specify their glucose reading as a number.
 
 IMPORTANT: Do NOT ask for user ID. The user_id is already in your context. Your job is to extract the glucose reading from the user's response and record it using the record_glucose_reading tool.""",
     tools=[record_glucose_reading],
+    handoffs=[handoff(meal_planner_agent)],
     model="gpt-4.1-mini",  # Using the same model as other agents
 )

@@ -84,6 +84,11 @@ async def chat_loop():  # Changed to async
                 current_agent = result.last_agent
 
             display_message("Agent", result.final_output)
+            
+            # Check if exit was requested by the meal planner agent
+            if shared_context.exit_requested:
+                console.print("\nExiting application as requested... Goodbye! 👋", style="yellow")
+                return
 
         except KeyboardInterrupt:
             console.print("\n\nExiting chat... Goodbye! 👋", style="yellow")
