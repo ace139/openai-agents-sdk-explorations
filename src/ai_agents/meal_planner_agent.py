@@ -5,6 +5,7 @@ from typing import Annotated
 from pydantic import Field
 from agents import Agent, function_tool, RunContextWrapper
 from .agent_context import UserInteractionContext
+from .health_qna_agent import health_qna_agent
 
 # Database path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -263,12 +264,22 @@ Follow these steps:
    - Portion sizes when appropriate
    - Brief explanation of why these foods are recommended for their condition
 
-6. After providing the meal plan, inform the user that the program will now exit. 
+6. If the user asks a health-related question during the meal planning process, use the answer_health_question tool to address their question, and then continue with providing meal recommendations.
+
+7. After providing the meal plan, inform the user that the program will now exit. 
    The generate_meal_plan tool automatically sets an exit flag that will terminate the CLI program.
 
 IMPORTANT: Provide DETAILED, SPECIFIC meal recommendations, not general advice. For example, instead of saying "eat low-glycemic foods," recommend specific meals like "1 cup of steel-cut oatmeal with cinnamon and 1 tablespoon of almonds."
 
 Remember: The user's health profile and glucose readings are already in the database. You do not need to ask them for this information.""",
-    tools=[get_user_health_profile, get_glucose_history, generate_meal_plan],
+    tools=[
+        get_user_health_profile, 
+        get_glucose_history, 
+        generate_meal_plan,
+        health_qna_agent.as_tool(
+            tool_name="answer_health_question",
+            tool_description="Answers health-related questions from the user"
+        )
+    ],
     model="gpt-4.1-mini",
 )

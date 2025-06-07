@@ -5,6 +5,7 @@ from pydantic import Field
 from agents import Agent, function_tool, RunContextWrapper, handoff
 from .agent_context import UserInteractionContext
 from .meal_planner_agent import meal_planner_agent
+from .health_qna_agent import health_qna_agent
 
 # Database path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -80,7 +81,9 @@ def record_glucose_reading(
         
         # Determine if the reading is within normal range and generate appropriate response
         if NORMAL_MIN_GLUCOSE <= glucose_level <= NORMAL_MAX_GLUCOSE:
-            return f"Your glucose reading of {glucose_level} mg/dL has been recorded. Great job! Your glucose level is within the normal range."
+            # Set exit_requested flag to gracefully exit the application
+            wrapper.context.exit_requested = True
+            return f"Your glucose reading of {glucose_level} mg/dL has been recorded. Great job! Your glucose level is within the normal range.\n\nYour health metrics look good today! The application will now exit."
         elif glucose_level < NORMAL_MIN_GLUCOSE:
             return f"Your glucose reading of {glucose_level} mg/dL has been recorded. Your glucose level is below the normal range. Consider having a snack or meal soon."
         else:  # glucose_level > NORMAL_MAX_GLUCOSE
@@ -97,32 +100,41 @@ cgm_reading_collector_agent = Agent[UserInteractionContext](
     name="CGMReadingCollectorAgent",
     instructions="""You are an AI assistant that helps users log their glucose (blood sugar) readings. Users have already been verified, and their user_id is available in your context.
 
-Follow these steps:
+    Follow these steps:
 
-1. First, ask the user for their current glucose reading with a friendly question like "What is your current glucose reading in mg/dL?"
+    1. First, ask the user for their current glucose reading with a friendly question like "What is your current glucose reading in mg/dL?"
 
-2. When the user responds, extract the glucose reading value from their response. Look for:
-   - A numeric value (e.g., "120", "95.5")
-   - Units (mg/dL is the default if not specified)
-   - Context clues about their glucose reading
+    2. When the user responds, extract the glucose reading value from their response. Look for:
+    - A numeric value (e.g., "120", "95.5")
+    - Units (mg/dL is the default if not specified)
+    - Context clues about their glucose reading
 
-3. IMMEDIATELY use the record_glucose_reading tool to record the extracted glucose reading. Pass ONLY the numeric value.
-   - GOOD examples: 120, 95.5, 83
-   - BAD examples: passing text like "my glucose is 120" or including units
+    3. IMMEDIATELY use the record_glucose_reading tool to record the extracted glucose reading. Pass ONLY the numeric value.
+    - GOOD examples: 120, 95.5, 83
+    - BAD examples: passing text like "my glucose is 120" or including units
 
-4. Share the confirmation message with the user, which will include:
-   - Confirmation that the reading was recorded
-   - Feedback on whether the reading is within normal range (70-140 mg/dL)
-   - A positive affirmation if the reading is within normal range
+    4. Share the confirmation message with the user, which will include:
+    - Confirmation that the reading was recorded
+    - Feedback on whether the reading is within normal range (70-140 mg/dL)
+    - A positive affirmation if the reading is within normal range
 
-5. Analyze the glucose reading:
-   - If the reading is NOT within the normal range (70-140 mg/dL), politely inform the user that you'll help them with meal recommendations based on their glucose levels. Say something like: "I notice your glucose level is outside the normal range. Let me help you with some meal recommendations." Then use the transfer_to_MealPlannerAgent tool to hand off to the meal planner. Do not wait for further user input before this handoff.
-   - If the reading IS within the normal range, simply acknowledge this with a positive message.
+    5. Analyze the glucose reading:
+    - If the reading is NOT within the normal range (70-140 mg/dL), politely inform the user that you'll help them with meal recommendations based on their glucose levels. Say something like: "I notice your glucose level is outside the normal range. Let me help you with some meal recommendations." Then use the transfer_to_MealPlannerAgent tool to hand off to the meal planner. Do not wait for further user input before this handoff.
+    - If the reading IS within the normal range, acknowledge this with a positive message. The record_glucose_reading tool will automatically set an exit flag in the context that will terminate the CLI program after your response. Let the user know the program will exit with a friendly closing message.
 
-6. If the user doesn't provide a clear numeric value, politely ask them to specify their glucose reading as a number.
+    6. If the user doesn't provide a clear numeric value, politely ask them to specify their glucose reading as a number.
 
-IMPORTANT: Do NOT ask for user ID. The user_id is already in your context. Your job is to extract the glucose reading from the user's response and record it using the record_glucose_reading tool.""",
-    tools=[record_glucose_reading],
+    7. If the user asks a health-related question instead of providing their glucose reading, use the answer_health_question tool to address their question. After answering, gently remind them that you need their current glucose reading and ask again.
+
+    IMPORTANT: Do NOT ask for user ID. The user_id is already in your context. Your job is to extract the glucose reading from the user's response and record it using the record_glucose_reading tool.
+    """,
+    tools=[
+        record_glucose_reading,
+        health_qna_agent.as_tool(
+            tool_name="answer_health_question",
+            tool_description="Answers health-related questions from the user"
+        )
+    ],
     handoffs=[handoff(meal_planner_agent)],
     model="gpt-4.1-mini",  # Using the same model as other agents
 )

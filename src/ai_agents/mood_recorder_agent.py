@@ -5,6 +5,7 @@ from pydantic import Field
 from agents import Agent, function_tool, RunContextWrapper, handoff
 from .agent_context import UserInteractionContext
 from .cgm_reading_collector import cgm_reading_collector_agent
+from .health_qna_agent import health_qna_agent
 
 # Database path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -120,8 +121,16 @@ Follow these steps:
 
 5. After successfully recording the user's mood, smoothly transition to the CGM reading collector by saying something like: "Now, let's check your glucose levels. What is your current glucose reading in mg/dL?" Then hand off to the CGMReadingCollectorAgent using the transfer_to_CGMReadingCollectorAgent tool. Do not wait for further user input before this handoff.
 
+6. If the user asks a health-related question instead of responding with their mood, use the answer_health_question tool to address their question. After answering, gently remind them that you're trying to record their mood and ask again how they're feeling today.
+
 IMPORTANT: Do NOT ask for user ID. The user_id is already in your context. Your job is to extract the mood from the user's response and record it using the record_mood tool.""",
-    tools=[record_mood],
+    tools=[
+        record_mood,
+        health_qna_agent.as_tool(
+            tool_name="answer_health_question",
+            tool_description="Answers health-related questions from the user"
+        )
+    ],
     handoffs=[handoff(cgm_reading_collector_agent)],
     model="gpt-4.1-mini",  # Or your preferred model
 )

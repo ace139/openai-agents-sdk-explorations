@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from agents import Agent, function_tool, RunContextWrapper, handoff
 from .agent_context import UserInteractionContext
 from .mood_recorder_agent import mood_recorder_agent
+from .health_qna_agent import health_qna_agent
 
 # Load environment variables from .env file in the project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -80,10 +81,17 @@ identity_verification_agent = Agent[UserInteractionContext](  # Added context ty
         "      - Second part: 'Hi [First Name from tool message], how are you doing today? I'm here to assist you with your health and wellbeing.'\n"
         "   c. Immediately after, smoothly handoff to the MoodRecorderAgent. Use the `transfer_to_MoodRecorderAgent` tool. You can say something like: 'Now, let's check in on your mood.' Do not wait for further user input before this handoff.\n"
         "4. If the tool indicates the ID was not found (e.g., 'User ID [ID] not found...'), inform the user clearly and ask them to provide a correct ID. For example: 'It seems that ID is not in our records. Could you please double-check and provide a valid user ID?'\n"
-        "5. If the tool returns any other error, inform the user that there was a problem verifying their ID and suggest they try again later."
+        "5. If the tool returns any other error, inform the user that there was a problem verifying their ID and suggest they try again later.\n"
+        "6. If at any point after successful verification the user asks a health-related question instead of providing their ID, use the 'answer_health_question' tool to address their question. After answering, gently guide them back to the verification process if they haven't completed it yet.\n"
         "Be warm, friendly, and professional in your communication."
     ),
-    tools=[verify_user_identity],
+    tools=[
+        verify_user_identity,
+        health_qna_agent.as_tool(
+            tool_name="answer_health_question",
+            tool_description="Answers health-related questions from the user"
+        )
+    ],
     handoffs=[handoff(mood_recorder_agent)],
     model="gpt-4.1-mini",
 )
