@@ -112,18 +112,19 @@ openai-agents-sdk-explorations/
 ├── .venv/                      # Python virtual environment - Gitignored
 ├── db/
 │   ├── __init__.py
-│   ├── init_db.py            # Script to initialize and populate the database
-│   ├── models.py             # SQLAlchemy ORM models
+│   ├── database.py             # SQLAlchemy engine and session management
+│   ├── init_db.py              # Script to initialize and populate the database
+│   ├── models.py               # SQLAlchemy ORM models
 │   └── health_assistant.db     # SQLite database file - Gitignored
 ├── src/
 │   ├── ai_agents/
 │   │   ├── __init__.py
-│   │   ├── agent_context.py      # Defines UserInteractionContext for shared state
+│   │   ├── agent_context.py         # Defines UserInteractionContext for shared state
 │   │   ├── cgm_reading_collector.py # CGM Reading Collector Agent
-│   │   ├── health_qna_agent.py   # Health Q&A Agent
-│   │   ├── identity_verifier.py  # Identity Verifier Agent
-│   │   ├── meal_planner_agent.py # Meal Planner Agent
-│   │   └── mood_recorder_agent.py# Mood Recorder Agent
+│   │   ├── health_qna_agent.py      # Health Q&A Agent
+│   │   ├── identity_verifier.py     # Identity Verifier Agent
+│   │   ├── meal_planner_agent.py    # Meal Planner Agent
+│   │   └── mood_recorder_agent.py   # Mood Recorder Agent
 │   └── __init__.py
 ├── main.py                     # Main CLI application entry point (using Typer and asyncio)
 ├── pyproject.toml              # Project metadata and dependencies for PEP 517/PEP 621 build systems
