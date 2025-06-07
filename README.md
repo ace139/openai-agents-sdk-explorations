@@ -145,42 +145,38 @@ openai-agents-sdk-explorations/
     cd openai-agents-sdk-explorations
     ```
 
-2.  **Set up Python Environment**:
-    *   It's highly recommended to use a virtual environment. If you have `pyenv` and `pyenv-virtualenv`:
+2.  **Set up Python Environment using `uv`**:
+    *   Ensure you have Python installed (version >=3.13, as specified in `pyproject.toml`).
+    *   `uv` can create and manage virtual environments. To create a virtual environment (e.g., named `.venv`) in your project directory:
         ```bash
-        pyenv install $(cat .python-version) # Installs Python version if not present
-        pyenv virtualenv $(cat .python-version) openai-agents-env
-        pyenv local openai-agents-env
+        uv venv
         ```
-    *   Alternatively, create a standard venv:
-        ```bash
-        python -m venv .venv
-        ```
+        This command creates a virtual environment in the `.venv` directory using the Python interpreter available on your PATH that matches the project's specified Python version (if defined in `pyproject.toml`) or a sensible default.
     *   Activate the virtual environment:
         *   On macOS/Linux: `source .venv/bin/activate`
         *   On Windows: `.venv\Scripts\activate`
 
 3.  **Install Dependencies using `uv`**:
-    ```bash
-    uv pip install -r requirements.txt  # If requirements.txt is maintained
-    # OR, if installing directly from pyproject.toml (preferred with uv)
-    uv pip install . # Installs dependencies listed in pyproject.toml
-    # For development dependencies (like Ruff):
-    uv pip install .[dev]
-    ```
-    *(Note: The project uses `pyproject.toml` for dependencies. `uv` can install directly from it. If a `requirements.txt` is preferred for some workflows, it would typically be generated from `pyproject.toml` or `uv.lock` using `uv pip freeze > requirements.txt` or `uv pip compile pyproject.toml -o requirements.txt`.)*
+    *   With your virtual environment activated, install dependencies from `pyproject.toml`:
+        ```bash
+        uv pip install .
+        ```
+    *   To include development dependencies (like Ruff):
+        ```bash
+        uv pip install .[dev]
+        ```
+    *(Note: This project uses `pyproject.toml` to define dependencies. `uv` installs them directly from this file. If you need a `requirements.txt` for other purposes, you can generate it using `uv pip freeze > requirements.txt` after installation.)*
 
 4.  **Configure Environment Variables**:
     *   Copy the example environment file:
         ```bash
         cp .env.example .env
         ```
-    *   Edit the `.env` file and add your OpenAI API key and desired model:
+    *   Edit the `.env` file and add your OpenAI API key:
         ```plaintext
         OPENAI_API_KEY="your_actual_openai_api_key_here"
-        OPENAI_MODEL="gpt-4.1-mini" # Or any other compatible model
         ```
-        **Important**: Ensure `OPENAI_MODEL` is set, as agents might use it. The default in `.env.example` is `gpt-4.1-mini`.
+        The specific OpenAI model (e.g., `gpt-4.1-mini`) is configured directly within each agent's definition in the source code.
 
 5.  **Initialize the Database**:
     *   Run the database initialization script from the project root directory:
