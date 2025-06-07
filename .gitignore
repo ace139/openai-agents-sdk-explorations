@@ -35,7 +35,8 @@ ENV/
 *~
 
 # Project specific
-# .windsurf/
+.windsurf/
+.ruff_cache/
 
 # Database
 *.db
